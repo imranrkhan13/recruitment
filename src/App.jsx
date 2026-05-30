@@ -15,7 +15,7 @@ function App() {
 
     const loadScreenings = async () => {
       try {
-        const response = await fetch('${import.meta.env.VITE_API_URL}/api/screenings');
+        const response = await fetch(`${import.meta.env.VITE_API_URL}/api/screenings`);
         if (!response.ok) {
           if (isMounted) setBackendStatus('offline');
           return;

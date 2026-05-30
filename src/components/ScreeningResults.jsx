@@ -10,7 +10,7 @@ export default function ScreeningResults() {
   const refreshResults = async () => {
     setIsRefreshing(true);
     try {
-      const response = await fetch('${import.meta.env.VITE_API_URL}/api/screenings');
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/screenings`);
       if (response.ok) {
         const data = await response.json();
         setScreeningResults(data.results || []);

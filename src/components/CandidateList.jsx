@@ -28,7 +28,7 @@ export default function CandidateList() {
 
   const refreshScreenings = async () => {
     try {
-      const screeningsResponse = await fetch('/api/screenings');
+      const screeningsResponse = await fetch(`${import.meta.env.VITE_API_URL}/api/screenings`);
       if (screeningsResponse.ok) {
         const screenings = await screeningsResponse.json();
         setScreeningResults(screenings.results || []);
@@ -44,7 +44,7 @@ export default function CandidateList() {
     const poll = async () => {
       attempts += 1;
       try {
-        const response = await fetch(`/api/call-status/${callId}`);
+        const response = await fetch(`${import.meta.env.VITE_API_URL}/api/call-status/${callId}`);
         const data = await response.json();
 
         if (response.ok) {
@@ -75,7 +75,7 @@ export default function CandidateList() {
     setMessage('');
 
     try {
-      const response = await fetch('/api/initiate-call', {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/initiate-call`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
