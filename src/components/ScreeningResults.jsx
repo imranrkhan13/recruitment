@@ -10,7 +10,7 @@ export default function ScreeningResults() {
   const refreshResults = async () => {
     setIsRefreshing(true);
     try {
-      const response = await fetch('/api/screenings');
+      const response = await fetch('${import.meta.env.VITE_API_URL}/api/screenings');
       if (response.ok) {
         const data = await response.json();
         setScreeningResults(data.results || []);
@@ -21,7 +21,7 @@ export default function ScreeningResults() {
   };
 
   const deleteResult = async (id) => {
-    const response = await fetch(`/api/screenings/${id}`, { method: 'DELETE' });
+    const response = await fetch(`${import.meta.env.VITE_API_URL}/api/screenings/${id}`, { method: 'DELETE' });
     if (response.ok) {
       setScreeningResults(screeningResults.filter((result) => result.id !== id));
     }

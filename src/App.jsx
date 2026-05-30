@@ -15,7 +15,7 @@ function App() {
 
     const loadScreenings = async () => {
       try {
-        const response = await fetch('/api/screenings');
+        const response = await fetch('${import.meta.env.VITE_API_URL}/api/screenings');
         if (!response.ok) {
           if (isMounted) setBackendStatus('offline');
           return;
@@ -104,7 +104,7 @@ function App() {
             <AlertCircle size={17} />
             <span>
               API is not reachable. Calls and results need the Express backend on
-              `https://recruitment-kob6.onrender.com/`.
+              `{import.meta.env.VITE_API_URL}`.
             </span>
           </div>
         )}
