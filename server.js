@@ -254,7 +254,7 @@ const syncCompletedExecution = async (callId) => {
  * POST /api/initiate-call
  * Initiates a phone screening call via Bolna
  */
-app.post(`${import.meta.env.VITE_API_URL}/api/initiate-call`, async (req, res) => {
+app.post("/api/initiate-call", async (req, res) => {
   try {
     const { candidateId, candidateName, phoneNumber, roleApplied } = req.body;
 
@@ -357,7 +357,7 @@ app.post(`${import.meta.env.VITE_API_URL}/api/initiate-call`, async (req, res) =
  * Receives screening results from Bolna agent
  * This is called by the Bolna agent after completing the 5-question screening
  */
-app.post(`${import.meta.env.VITE_API_URL}/api/webhook/screening-complete`, async (req, res) => {
+app.post("/api/webhook/screening-complete", async (req, res) => {
   try {
     const screeningData = req.body;
 
@@ -390,7 +390,7 @@ app.post(`${import.meta.env.VITE_API_URL}/api/webhook/screening-complete`, async
  * GET /api/screenings
  * Retrieve all screening results
  */
-app.get(`${import.meta.env.VITE_API_URL}/api/screenings`, (req, res) => {
+app.get("/api/screenings", (req, res) => {
   res.json({
     total: screeningResults.length,
     results: screeningResults,
@@ -401,7 +401,7 @@ app.get(`${import.meta.env.VITE_API_URL}/api/screenings`, (req, res) => {
  * GET /api/screenings/:id
  * Retrieve specific screening result
  */
-app.get(`${import.meta.env.VITE_API_URL}/api/screenings/:id`, (req, res) => {
+app.get("/api/screenings/:id", (req, res) => {
   const result = screeningResults.find((r) => r.id === req.params.id);
   if (!result) {
     return res.status(404).json({ error: 'Screening not found' });
@@ -413,7 +413,7 @@ app.get(`${import.meta.env.VITE_API_URL}/api/screenings/:id`, (req, res) => {
  * DELETE /api/screenings/:id
  * Delete a screening result
  */
-app.delete(`${import.meta.env.VITE_API_URL}/api/screenings/:id`, (req, res) => {
+app.delete("/api/screenings/:id", (req, res) => {
   const index = screeningResults.findIndex((r) => r.id === req.params.id);
   if (index === -1) {
     return res.status(404).json({ error: 'Screening not found' });
@@ -458,13 +458,13 @@ const handleCallStatus = async (req, res) => {
  * GET/POST /api/call-status/:callId
  * Checks call status with Bolna and saves completed execution data when available.
  */
-app.get(`${import.meta.env.VITE_API_URL}/api/call-status/:callId`, handleCallStatus);
-app.post(`${import.meta.env.VITE_API_URL}/api/call-status/:callId`, handleCallStatus);
+app.get("/api/call-status/:callId", handleCallStatus);
+app.post("/api/call-status/:callId", handleCallStatus);
 
 /**
  * Health check endpoint
  */
-app.get(`${import.meta.env.VITE_API_URL}/health`, (req, res) => {
+app.get("/health", (req, res) => {
   res.json({
     status: 'ok',
     timestamp: new Date(),
@@ -485,10 +485,10 @@ app.use((err, req, res, next) => {
 
 // Start server
 app.listen(PORT, () => {
-  console.log(`\n🚀 Aria Backend Server running on ${import.meta.env.VITE_API_URL}`);
-  console.log(`📊 Webhooks endpoint: ${import.meta.env.VITE_API_URL}/api/webhook/screening-complete`);
+  console.log(`\n🚀 Aria Backend Server running on http://localhost:${PORT}`);
+  console.log(`📊 Webhooks endpoint: http://localhost:${PORT}/api/webhook/screening-complete`);
   console.log(`🧪 Demo calls: ${MOCK_CALLS || !BOLNA_API_KEY || !BOLNA_AGENT_ID ? 'enabled' : 'disabled'}`);
-  console.log(`✅ Health check: ${import.meta.env.VITE_API_URL}/health\n`);
+  console.log(`✅ Health check: http://localhost:${PORT}/health\n`);
 });
 
 export default app;
