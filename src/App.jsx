@@ -104,7 +104,7 @@ function App() {
             <AlertCircle size={17} />
             <span>
               API is not reachable. Calls and results need the Express backend on
-              `http://localhost:3001`.
+              `https://recruitment-kob6.onrender.com/`.
             </span>
           </div>
         )}

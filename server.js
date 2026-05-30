@@ -485,10 +485,10 @@ app.use((err, req, res, next) => {
 
 // Start server
 app.listen(PORT, () => {
-  console.log(`\n🚀 Aria Backend Server running on http://localhost:${PORT}`);
-  console.log(`📊 Webhooks endpoint: http://localhost:${PORT}/api/webhook/screening-complete`);
+  console.log(`\n🚀 Aria Backend Server running on https://recruitment-kob6.onrender.com`);
+  console.log(`📊 Webhooks endpoint: https://recruitment-kob6.onrender.com/api/webhook/screening-complete`);
   console.log(`🧪 Demo calls: ${MOCK_CALLS || !BOLNA_API_KEY || !BOLNA_AGENT_ID ? 'enabled' : 'disabled'}`);
-  console.log(`✅ Health check: http://localhost:${PORT}/health\n`);
+  console.log(`✅ Health check: https://recruitment-kob6.onrender.com/health\n`);
 });
 
 export default app;

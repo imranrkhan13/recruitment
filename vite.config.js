@@ -6,8 +6,8 @@ export default defineConfig({
   plugins: [react()],
   server: {
     proxy: {
-      '/api': 'http://localhost:3001',
-      '/health': 'http://localhost:3001',
+      '/api': 'https://recruitment-kob6.onrender.com/api',
+      '/health': 'https://recruitment-kob6.onrender.com/health',
     },
   },
 })
