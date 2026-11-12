@@ -531,6 +531,45 @@ app.post("/api/initiate-call", async (req, res) => {
       return res.status(400).json({ error: 'Missing required fields' });
     }
 
+    // Duplicate-dial guard: never place a second call for a candidate while
+    // the previous one is not confirmed terminal. A paid duplicate is worse
+    // than a blocked retry, so uncertainty blocks the dial - the client can
+    // re-check status and recover instead.
+    if (candidateId) {
+      const existing = getCandidates().find((c) => c.id === candidateId);
+      if (existing && (existing.callInitiatedAt || existing.callId)) {
+        const hasResult = getScreenings().some(
+          (r) => r.candidateId === existing.id || (existing.callId && r.callId === existing.callId)
+        );
+        if (!hasResult) {
+          let status = (existing.callStatus || '').toLowerCase();
+          if (existing.callId && !MOCK_CALLS && HAS_BOLNA_CREDS) {
+            try {
+              const live = await syncCompletedExecution(existing.callId);
+              if (live?.status) status = String(live.status).toLowerCase();
+            } catch { /* keep the stored status - uncertainty still blocks */ }
+          }
+          const TERMINAL = new Set([
+            'completed', 'call-disconnected', 'failed', 'error', 'no-answer', 'busy',
+            'canceled', 'cancelled', 'call-rejected', 'rejected', 'declined',
+            'not_answered', 'missed', 'user-busy',
+          ]);
+          // Demo calls cost nothing, so a stuck demo status may expire;
+          // real calls never get a time-based escape.
+          const demoStale = MOCK_CALLS && existing.callInitiatedAt &&
+            Date.now() - Date.parse(existing.callInitiatedAt) > 15 * 60 * 1000;
+          if (!TERMINAL.has(status) && !demoStale) {
+            return res.status(409).json({
+              error: 'A call is already active for this candidate',
+              details: 'The provider has not confirmed the previous call ended. Check its status again in a moment - retrying now could place a duplicate paid call.',
+              callId: existing.callId || null,
+              status: status || 'unknown',
+            });
+          }
+        }
+      }
+    }
+
     // Prepare call data for Bolna
     const callId = `call_${Date.now()}`;
     const shouldMockCall = MOCK_CALLS;
