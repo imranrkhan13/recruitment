@@ -11,7 +11,11 @@ Aria is built for the first round of hiring: add a candidate, click **Call**, le
 - **Structured 5-question phone screen** for consistent first-round evaluation
 - **Live call status polling** after a call is started
 - **Automatic result display** from Bolna webhook or execution lookup
-- **Local demo mode** for testing without placing real calls
+- **Local demo mode** for testing without placing real calls (the default)
+- **Private by default** - one owner account (email + password) protects every candidate, result and decision
+- **Server-side storage** - Postgres (Neon free tier) in production, local JSON file for development
+- **Human decision gate** - the AI score is a suggestion; shortlist/reject always comes from the recruiter
+- **Immutable published results** - a changed payload for an existing screening waits for human approval instead of overwriting it
 - **Responsive, minimal UI** built with React, Vite, Zustand, and plain CSS
 
 ## Product Flow
@@ -38,7 +42,7 @@ Dashboard shows score, recommendation, and answers
 | Backend | Node.js, Express |
 | Voice AI | Bolna outbound calling API |
 | Styling | Minimal custom CSS |
-| Data | In-memory backend store + localStorage candidates |
+| Data | Postgres via `DATABASE_URL` (Neon free tier), local JSON file fallback |
 
 ## Features
 
@@ -93,20 +97,27 @@ npm install --legacy-peer-deps
 Create or update `.env`:
 
 ```bash
+# Postgres connection string (Neon free tier works). Without it the app
+# stores data in a local aria-data.json file.
+DATABASE_URL=postgresql://user:password@host/dbname?sslmode=require
+
 BOLNA_API_KEY=your_bolna_api_key_here
 BOLNA_AGENT_ID=your_bolna_agent_uuid_here
-MOCK_BOLNA_CALLS=false
+
+# Real calls ring real phones and spend Bolna credits. Off by default.
+ALLOW_REAL_CALLS=false
 
 PORT=3001
 COMPANY_NAME=Aria AI
-WEBHOOK_TOKEN=optional_shared_secret
+
+# Required for the screening webhook: the endpoint is disabled until
+# this is set, and Bolna must send it as the x-webhook-token header.
+WEBHOOK_TOKEN=long_random_secret
 ```
 
-For a no-call demo:
-
-```bash
-MOCK_BOLNA_CALLS=true
-```
+Real outbound calls only happen when `ALLOW_REAL_CALLS=true` **and** both
+Bolna credentials are set. Otherwise every call is a local demo with a
+clearly labelled sample result - safe for demos and testing.
 
 ## Run
 
@@ -235,12 +246,23 @@ npm run build    # production build
 npm run lint     # ESLint
 ```
 
+## Privacy and Safety
+
+- First visit asks you to create the **owner account** (email + password, 12+ characters, stored as a salted hash) - but only with the private **setup code** (`BOOTSTRAP_SECRET`), so a stranger who finds the URL before you cannot claim the workspace. Setup stays closed until that secret is configured. Every candidate, result and decision endpoint requires sign-in; 5 failed logins lock the IP for 15 minutes.
+- The webhook is **fail-closed**: it is disabled until `WEBHOOK_TOKEN` is set, and then only accepts posts carrying that secret.
+- Real calls stay off until `ALLOW_REAL_CALLS=true` - credentials alone never place a call.
+
+## How Decisions Work
+
+- Aria's PASS/REJECT and scores are **suggestions from the AI screen**, shown as "AI suggestion".
+- Shortlisting or rejecting a candidate is always a **human action** in the app. No score ever changes a decision on its own.
+- Once a result is published it is **immutable**: a changed payload for the same call (a webhook retry with new data, for example) is stored as a pending update that you approve or keep current. Identical retries are ignored, and your decision is never reset by incoming data.
+
 ## Current Limitations
 
-- Results are stored in memory on the backend, so they reset when the server restarts.
-- Candidate records are stored in browser `localStorage`.
-- Production deployment should add a real database and a public webhook URL.
-- Real call success depends on Bolna credentials, agent configuration, credits, and phone routing.
+- With `DATABASE_URL` set, data survives restarts and redeploys. Without it (local JSON file), data survives restarts but not redeploys on hosts with an ephemeral filesystem.
+- The backend serves the built frontend from the same URL, so `VITE_API_URL` is only needed when the API runs on a different origin.
+- Real call success depends on Bolna credentials, agent configuration, credits, and phone routing, and requires `ALLOW_REAL_CALLS=true`.
 
 ## Demo Checklist
 
