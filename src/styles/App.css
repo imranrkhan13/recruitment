@@ -715,6 +715,11 @@ textarea {
     flex-direction: row;
     overflow-x: auto;
     gap: 4px;
+    scrollbar-width: none;
+  }
+
+  .app-nav::-webkit-scrollbar {
+    display: none;
   }
 
   .nav-btn {
@@ -752,4 +757,212 @@ textarea {
     animation-duration: .001ms !important;
     transition-duration: .001ms !important;
   }
+}
+/* ── Demo mode banner ── */
+.alert-banner.info {
+  background: var(--warn-bg);
+  border: 1px solid var(--warn-b);
+  color: var(--warn);
+}
+
+/* ── Decision controls (human review gate) ── */
+.decision-controls {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 10px 12px;
+  margin-bottom: 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  background: var(--bg-subtle);
+}
+
+.decision-controls.compact {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 8px 10px;
+  margin: 8px 0 0;
+  border: none;
+  background: transparent;
+}
+
+.decision-current {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.decision-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  color: var(--text-3);
+}
+
+.decision-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.badge.decision-pending {
+  background: var(--warn-bg);
+  border: 1px solid var(--warn-b);
+  color: var(--warn);
+}
+
+.badge.decision-shortlisted {
+  background: var(--success-bg);
+  border: 1px solid var(--success-b);
+  color: var(--success);
+}
+
+.badge.decision-rejected {
+  background: var(--danger-bg);
+  border: 1px solid var(--danger-b);
+  color: var(--danger);
+}
+
+.badge.badge-demo {
+  background: var(--accent-l);
+  border: 1px solid var(--border-2);
+  color: var(--accent);
+}
+
+.btn-decision-shortlist {
+  background: var(--success-bg);
+  border: 1px solid var(--success-b);
+  color: var(--success);
+}
+
+.btn-decision-shortlist:hover:not(:disabled) {
+  background: var(--success-b);
+}
+
+.btn-decision-reject {
+  background: var(--danger-bg);
+  border: 1px solid var(--danger-b);
+  color: var(--danger);
+}
+
+.btn-decision-reject:hover:not(:disabled) {
+  background: var(--danger-b);
+}
+
+.decision-error {
+  font-size: 12px;
+  color: var(--danger);
+}
+
+/* ── Auth screen ── */
+.auth-screen {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: var(--bg);
+}
+
+.auth-card {
+  width: 100%;
+  max-width: 380px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  background: var(--bg-card);
+  padding: 28px 26px;
+  box-shadow: var(--sh-xs, 0 1px 2px rgba(28, 15, 0, .06));
+}
+
+.auth-card h1 {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text-1);
+  margin-bottom: 6px;
+}
+
+.auth-sub {
+  font-size: 13px;
+  color: var(--text-3);
+  line-height: 1.5;
+  margin-bottom: 18px;
+}
+
+.auth-foot {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 16px;
+  font-size: 11.5px;
+  color: var(--text-4);
+}
+
+.logout-btn {
+  margin-top: 8px;
+}
+
+/* ── Nav labels: full on desktop, short on mobile ── */
+.nav-label-short {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .app-nav {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    overflow-x: visible;
+    width: 100%;
+  }
+
+  .nav-btn {
+    justify-content: center;
+    padding: 8px 4px;
+    font-size: 12px;
+  }
+
+  .nav-label-long {
+    display: none;
+  }
+
+  .nav-label-short {
+    display: inline;
+  }
+
+  .sidebar-status .logout-btn {
+    display: none;
+  }
+}
+
+/* ── Pending review of updated result ── */
+.badge.badge-review {
+  background: var(--warn-bg);
+  border: 1px solid var(--warn-b);
+  color: var(--warn);
+}
+
+.pending-update-banner {
+  border: 1px solid var(--warn-b);
+  background: var(--warn-bg);
+  border-radius: var(--r-md);
+  padding: 12px 14px;
+  margin-bottom: 14px;
+}
+
+.pending-update-head {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--warn);
+  font-size: 13px;
+  margin-bottom: 6px;
+}
+
+.pending-update-banner p {
+  font-size: 12.5px;
+  color: var(--text-2);
+  line-height: 1.5;
+  margin-bottom: 10px;
 }
