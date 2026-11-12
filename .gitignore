@@ -23,3 +23,6 @@ dist-ssr
 *.sln
 *.sw?
 src/.md
+# Local data store
+aria-data.json
+aria-data.json.tmp
