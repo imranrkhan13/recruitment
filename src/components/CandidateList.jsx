@@ -39,7 +39,7 @@ function ScoreRing({ score, size = 52 }) {
 export default function CandidateList() {
   const {
     candidates, removeCandidate, updateCandidate,
-    screeningResults, isLoading, setLoading, setScreeningResults,
+    screeningResults, isLoading, setLoading, setScreeningResults, callsMode,
   } = useStore();
 
   const [calling, setCalling] = useState(null);
@@ -134,6 +134,15 @@ export default function CandidateList() {
   };
 
   const initiateCall = async (candidate) => {
+    if (callsMode === 'live') {
+      const ok = window.confirm(
+        `Place a REAL phone call to ${candidate.name} at ${candidate.phone}?\n\n` +
+        'Aria (the AI recruiter) will call this number now. Your Bolna wallet is billed per minute ' +
+        '(recent calls cost about Rs 6-11/min; the agent hangs up by ~5 minutes, so one call is roughly Rs 30-55). ' +
+        'No charge if the call is not answered.\n\nOnly continue if this number expects the call.'
+      );
+      if (!ok) return;
+    }
     setCalling(candidate.id);
     setLoading(true);
     setMessage('');
@@ -398,4 +407,4 @@ export default function CandidateList() {
       </div>
     </div>
   );
-      }
+  }
