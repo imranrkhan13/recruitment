@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import { useStore, apiUrl } from '../store';
 import DecisionControls from './DecisionControls';
+import TranscriptView from './TranscriptView';
 import '../styles/ScreeningResults.css';
 
 function ScoreRing({ score, size = 52 }) {
@@ -147,7 +148,7 @@ export default function ScreeningResults() {
         </div>
         <div className="summary-tile">
           <span className="summary-tile-label"><CheckCircle2 size={12} /> AI suggested pass</span>
-          <span className="summary-tile-value" style={{ color: 'var(--success)' }}>{passCount}</span>
+          <span className="summary-tile-value good">{passCount}</span>
           <span className="summary-tile-sub">{passRate}% of screens - not your decision</span>
         </div>
         <div className="summary-tile">
@@ -157,7 +158,7 @@ export default function ScreeningResults() {
         </div>
         <div className="summary-tile">
           <span className="summary-tile-label"><Award size={12} /> Top Score</span>
-          <span className="summary-tile-value" style={{ color: 'var(--brown-600)' }}>
+          <span className="summary-tile-value accent">
             {screeningResults.length ? Math.max(...screeningResults.map(r => r.overallScore || 0)) : 0}
           </span>
           <span className="summary-tile-sub">highest overall</span>
@@ -169,7 +170,7 @@ export default function ScreeningResults() {
         <div className="results-card-header">
           <h2>Screening Results ({filtered.length})</h2>
           <div className="results-search">
-            <Search size={12} color="var(--text-4)" />
+            <Search size={12} color="var(--text-3)" />
             <input placeholder="Search name, role…" value={search} onChange={e => setSearch(e.target.value)} />
           </div>
           <button className="btn btn-secondary btn-sm" onClick={refresh} disabled={refreshing}>
@@ -264,6 +265,8 @@ export default function ScreeningResults() {
                         </div>
                       )}
                     </div>
+
+                    <TranscriptView transcript={result.transcript} demo={result.demo} />
                   </div>
                 )}
               </div>
@@ -273,4 +276,4 @@ export default function ScreeningResults() {
       </div>
     </div>
   );
-}
+      }
