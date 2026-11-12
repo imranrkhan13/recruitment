@@ -102,9 +102,9 @@ export default function AuthGate({ mode, onAuthed }) {
         </form>
 
         <p className="auth-foot">
-          <Lock size={11} /> Stored on your own server. No one else can see or change this data.
+          <Lock size={11} /> Sign-in protects this workspace. Records are stored in this project's own database.
         </p>
       </div>
     </div>
   );
-  }
+}
