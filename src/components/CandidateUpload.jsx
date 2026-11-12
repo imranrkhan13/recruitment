@@ -22,7 +22,7 @@ export default function CandidateUpload() {
     setSuccess('');
   };
 
-  const submit = (e) => {
+  const submit = async (e) => {
     e.preventDefault();
     if (!form.name.trim() || !form.phone.trim()) {
       setError('Name and phone number are required.');
@@ -32,9 +32,13 @@ export default function CandidateUpload() {
       setError('Phone number must be 10 digits (e.g. 9876543210).');
       return;
     }
-    addCandidate(form);
-    setSuccess(`${form.name} added! Head to Candidates to start the call.`);
-    setForm({ name: '', email: '', phone: '', role: 'Software Engineer', company: '' });
+    try {
+      await addCandidate(form);
+      setSuccess(`${form.name} added! Head to Candidates to start the call.`);
+      setForm({ name: '', email: '', phone: '', role: 'Software Engineer', company: '' });
+    } catch {
+      setError('Could not save the candidate. Check that the backend is running.');
+    }
   };
 
   return (
@@ -69,7 +73,7 @@ export default function CandidateUpload() {
             <label className="form-label">Phone Number <span className="required">*</span></label>
             <input className="form-input" type="tel" name="phone" placeholder="9876543210"
               value={form.phone} onChange={handle} />
-            <span className="form-hint">10-digit Indian mobile number — Aria will call this number</span>
+            <span className="form-hint">10-digit Indian mobile number. In demo mode the call is simulated; no one is contacted.</span>
           </div>
 
           {/* Role + Company */}
@@ -103,21 +107,13 @@ export default function CandidateUpload() {
         <h3><Lightbulb size={14} /> How Aria Works</h3>
         <ul className="tips-list">
           <li><span className="tip-dot" />Add a candidate with their name, phone, and role.</li>
-          <li><span className="tip-dot" />Click <strong>Call</strong> — Aria dials them and conducts a 5-minute structured screen.</li>
-          <li><span className="tip-dot" />Aria asks 5 questions: background, motivation, role-specific, availability, and salary.</li>
-          <li><span className="tip-dot" />Each answer is scored 0–100 internally. Overall ≥ 70 = PASS.</li>
-          <li><span className="tip-dot" />Results are saved automatically — view them in the Results tab.</li>
+          <li><span className="tip-dot" />Click <strong>Call</strong>. In demo mode the call is simulated and no one is contacted; with real calls enabled, Aria dials them and conducts a structured phone screen.</li>
+          <li><span className="tip-dot" />A real screen asks 5 questions: background, motivation, role-specific, availability, and salary. Demo results are sample data, clearly labelled.</li>
+          <li><span className="tip-dot" />Each answer is scored 0–100. Overall ≥ 70 is shown as a PASS suggestion.</li>
+          <li><span className="tip-dot" />The AI result is only a suggestion — you make the shortlist or reject decision yourself.</li>
+          <li><span className="tip-dot" />Results are saved on the server — view them in the Results tab.</li>
         </ul>
-        <div className="tips-divider" />
-        <div className="tips-stat">
-          <span>Time saved per candidate</span>
-          <strong>~25 min</strong>
-        </div>
-        <div className="tips-stat" style={{ marginTop: 8 }}>
-          <span>Screening accuracy</span>
-          <strong>83%</strong>
-        </div>
       </div>
     </div>
   );
-}
+  }
