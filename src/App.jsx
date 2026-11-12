@@ -1,40 +1,83 @@
-import { useEffect, useState } from 'react';
-import { AlertCircle, BarChart3, PhoneCall, Users, UserPlus, Wifi, WifiOff } from 'lucide-react';
-import { useStore } from './store';
+import { useEffect } from 'react';
+import { BarChart3, Users, UserPlus, WifiOff, FlaskConical, LogOut } from 'lucide-react';
+import { useStore, apiUrl, API_BASE } from './store';
 import CandidateUpload from './components/CandidateUpload';
 import CandidateList from './components/CandidateList';
 import ScreeningResults from './components/ScreeningResults';
+import AuthGate from './components/AuthGate';
 import './styles/App.css';
 
 function App() {
-  const { activeTab, setActiveTab, candidates, screeningResults, setScreeningResults } = useStore();
-  const [backendStatus, setBackendStatus] = useState('checking');
+  const {
+    activeTab, setActiveTab, candidates, screeningResults,
+    setScreeningResults, loadCandidates, importLegacyCandidates,
+    backendStatus, callsMode, setBackend,
+    authState, authEmail, setAuth, checkAuth, logout,
+  } = useStore();
 
+  // Boot: who am I, then data.
   useEffect(() => {
     let isMounted = true;
-    const loadScreenings = async () => {
+    const boot = async () => {
       try {
-        const response = await fetch(`${import.meta.env.VITE_API_URL}/api/screenings`);
-        if (!response.ok) { if (isMounted) setBackendStatus('offline'); return; }
-        const data = await response.json();
-        if (isMounted) { setBackendStatus('online'); setScreeningResults(data.results || []); }
+        await checkAuth();
+        const health = await fetch(apiUrl('/health'));
+        const h = await health.json();
+        if (isMounted) setBackend('online', h.callsMode || (h.demoMode ? 'demo' : 'live'));
       } catch {
-        if (isMounted) setBackendStatus('offline');
+        if (isMounted) setBackend('offline', null);
       }
     };
-    loadScreenings();
-    const hasActiveCall = candidates.some(c => c.callInitiated && !c.callStatus);
+    boot();
+    return () => { isMounted = false; };
+  }, [checkAuth, setBackend]);
+
+  // Data loading + polling once authenticated.
+  useEffect(() => {
+    if (authState !== 'authed') return undefined;
+    let isMounted = true;
+
+    const loadScreenings = async () => {
+      try {
+        const response = await fetch(apiUrl('/api/screenings'), { credentials: 'same-origin' });
+        if (response.status === 401) { if (isMounted) setAuth('login'); return; }
+        if (!response.ok) { if (isMounted) setBackend('offline', null); return; }
+        const data = await response.json();
+        if (isMounted) setScreeningResults(data.results || []);
+      } catch {
+        if (isMounted) setBackend('offline', null);
+      }
+    };
+
+    const load = async () => {
+      await loadScreenings();
+      if (!isMounted) return;
+      try {
+        await importLegacyCandidates();
+        await loadCandidates();
+      } catch (err) {
+        if (err?.status === 401) { if (isMounted) setAuth('login'); return; }
+        if (isMounted) setBackend('offline', null);
+      }
+    };
+    load();
+
+    const hasActiveCall = candidates.some(c => c.callInitiatedAt && !c.callStatus);
     const interval = window.setInterval(loadScreenings, hasActiveCall ? 6000 : 15000);
     return () => { isMounted = false; window.clearInterval(interval); };
-  }, [candidates, setScreeningResults]);
+  }, [authState, candidates, setScreeningResults, loadCandidates, importLegacyCandidates, setBackend, setAuth]);
 
-  const passCount = screeningResults.filter(r => r.recommendation === 'PASS').length;
+  if (authState === 'setup' || authState === 'login') {
+    return <AuthGate mode={authState} onAuthed={(email) => setAuth('authed', email)} />;
+  }
+
+  const shortlistedCount = screeningResults.filter(r => r.decision === 'shortlisted').length;
   const pendingCount = candidates.filter(c => !screeningResults.find(
     r => r.candidateId === c.id || r.phoneNumber === c.phone
   )).length;
 
   const tabs = [
-    { id: 'upload', label: 'Add Candidate', icon: UserPlus, count: null },
+    { id: 'upload', label: 'Add', longLabel: 'Add Candidate', icon: UserPlus, count: null },
     { id: 'candidates', label: 'Candidates', icon: Users, count: candidates.length || null },
     { id: 'results', label: 'Results', icon: BarChart3, count: screeningResults.length || null },
   ];
@@ -52,14 +95,15 @@ function App() {
 
         <p className="nav-section-label">Navigation</p>
         <nav className="app-nav" aria-label="Main navigation">
-          {tabs.map(({ id, label, icon: Icon, count }) => (
+          {tabs.map(({ id, label, longLabel, icon: Icon, count }) => (
             <button
               key={id}
               className={`nav-btn ${activeTab === id ? 'active' : ''}`}
               onClick={() => setActiveTab(id)}
             >
               <Icon size={15} />
-              <span>{label}</span>
+              <span className="nav-label-short">{label}</span>
+              <span className="nav-label-long">{longLabel || label}</span>
               {count !== null && <span className="nav-badge">{count}</span>}
             </button>
           ))}
@@ -71,11 +115,18 @@ function App() {
           <span className={`status-dot ${backendStatus}`} />
           <p>
             {backendStatus === 'offline'
-              ? 'Backend offline — run npm start'
+              ? 'Backend offline'
               : backendStatus === 'checking'
                 ? 'Connecting to backend…'
-                : 'Backend connected'}
+                : callsMode === 'demo'
+                  ? 'Backend connected · demo calls'
+                  : 'Backend connected'}
           </p>
+          {authState === 'authed' && (
+            <button className="btn btn-ghost btn-sm logout-btn" onClick={logout} title={authEmail || 'Sign out'}>
+              <LogOut size={12} /> Sign out
+            </button>
+          )}
         </div>
       </aside>
 
@@ -91,8 +142,8 @@ function App() {
               <span>Candidates</span>
             </div>
             <div className="stat-pill">
-              <strong>{passCount}</strong>
-              <span>Passed</span>
+              <strong>{shortlistedCount}</strong>
+              <span>Shortlisted</span>
             </div>
             <div className="stat-pill">
               <strong>{pendingCount}</strong>
@@ -104,7 +155,14 @@ function App() {
         {backendStatus === 'offline' && (
           <div className="alert-banner error">
             <WifiOff size={15} />
-            <span>API unreachable at <strong>{import.meta.env.VITE_API_URL}</strong> — start the Express backend.</span>
+            <span>API unreachable{API_BASE ? <> at <strong>{API_BASE}</strong></> : ''} — start the Express backend with <strong>npm start</strong>.</span>
+          </div>
+        )}
+
+        {callsMode === 'demo' && backendStatus === 'online' && (
+          <div className="alert-banner info">
+            <FlaskConical size={15} />
+            <span>Demo mode: calls are simulated and results are sample data. No real phone calls are placed.</span>
           </div>
         )}
 
