@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { useStore, apiUrl } from '../store';
 import DecisionControls from './DecisionControls';
+import TranscriptView from './TranscriptView';
 import '../styles/CandidateList.css';
 
 // Bolna statuses that mean the candidate declined / didn't pick up
@@ -14,7 +15,18 @@ const REJECTED_CALL_STATUSES = new Set([
   'not_answered', 'missed', 'declined', 'user-busy',
 ]);
 
-const FILTER_OPTIONS = ['All', 'Pending', 'Passed', 'Rejected', 'Call Rejected'];
+const FILTER_OPTIONS = [
+  { key: 'All', label: 'All' },
+  { key: 'Pending', label: 'Pending' },
+  { key: 'Passed', label: 'AI pass' },
+  { key: 'Rejected', label: 'AI reject' },
+  { key: 'Call Rejected', label: 'Call Rejected' },
+];
+
+const TERMINAL_CALL_STATUSES = new Set([
+  'completed', 'call-disconnected', 'failed', 'error', 'no-answer', 'busy', 'canceled', 'cancelled',
+]);
+
 
 function ScoreRing({ score, size = 52 }) {
   const r = (size - 8) / 2;
@@ -55,6 +67,17 @@ export default function CandidateList() {
 
   const isCallRejected = (c) =>
     c.callStatus && REJECTED_CALL_STATUSES.has(c.callStatus.toLowerCase());
+
+  // A call is active while it has no result and no terminal provider
+  // status. Time alone cannot prove the provider ended the call, so
+  // there is no age-based escape: recovery is the status refresh, and
+  // the backend enforces the same rule before dialing.
+  const isCallActive = (c) => {
+    if (!c.callInitiatedAt && !c.callId) return false;
+    if (getResult(c)) return false;
+    const s = (c.callStatus || 'queued').toLowerCase();
+    return !TERMINAL_CALL_STATUSES.has(s) && !REJECTED_CALL_STATUSES.has(s);
+  };
 
   const getStatus = (c) => {
     if (isCallRejected(c)) return 'call-rejected';
@@ -133,6 +156,25 @@ export default function CandidateList() {
     window.setTimeout(poll, 5000);
   };
 
+  // Manual status recovery for an active call: asks the backend (which
+  // asks the provider) for the latest status so a finished call unlocks.
+  const checkStatus = async (candidate) => {
+    if (!candidate.callId) return;
+    try {
+      const res = await fetch(apiUrl(`/api/call-status/${candidate.callId}`), { credentials: 'same-origin' });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.status) {
+        updateCandidate(candidate.id, { callStatus: data.status });
+        await refreshScreenings();
+        setMessage(`Latest status for ${candidate.name}: ${String(data.status).replace(/-/g, ' ')}.`);
+      } else {
+        setMessage(`Could not refresh status for ${candidate.name}. Try again shortly.`);
+      }
+    } catch {
+      setMessage('Backend is offline. Run npm start, then try again.');
+    }
+  };
+
   const initiateCall = async (candidate) => {
     if (callsMode === 'live') {
       const ok = window.confirm(
@@ -195,8 +237,8 @@ export default function CandidateList() {
     if (s === 'call-rejected') return (
       <span className="badge badge-rejected-call"><PhoneMissed size={10} />Call Rejected</span>
     );
-    if (s === 'pass') return <span className="badge badge-pass"><CheckCircle size={10} />Passed</span>;
-    if (s === 'reject') return <span className="badge badge-reject"><AlertCircle size={10} />Rejected</span>;
+    if (s === 'pass') return <span className="badge badge-pass" title="AI screening suggestion - your decision is separate"><CheckCircle size={10} />AI pass</span>;
+    if (s === 'reject') return <span className="badge badge-reject" title="AI screening suggestion - your decision is separate"><AlertCircle size={10} />AI reject</span>;
     return <span className="badge badge-pending"><Clock size={10} />Pending</span>;
   };
 
@@ -217,13 +259,13 @@ export default function CandidateList() {
         <h2>Candidates</h2>
         <div className="toolbar-actions">
           <div className="search-box">
-            <Search size={12} color="var(--text-4)" />
+            <Search size={12} color="var(--text-3)" />
             <input
               placeholder="Search name, role, phone…"
               value={search}
               onChange={e => setSearch(e.target.value)}
             />
-            {search && <button onClick={() => setSearch('')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-4)', display: 'flex' }}><X size={11} /></button>}
+            {search && <button onClick={() => setSearch('')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-3)', display: 'flex' }}><X size={11} /></button>}
           </div>
           <button className="btn btn-secondary btn-sm" onClick={refreshScreenings}>
             <RefreshCw size={12} />
@@ -234,16 +276,14 @@ export default function CandidateList() {
 
       {/* Filter chips */}
       <div className="filter-strip">
-        {FILTER_OPTIONS.map(f => (
+        {FILTER_OPTIONS.map(({ key, label }) => (
           <button
-            key={f}
-            className={`filter-chip ${filter === f ? 'active' : ''}`}
-            onClick={() => setFilter(f)}
+            key={key}
+            className={`filter-chip ${filter === key ? 'active' : ''}`}
+            onClick={() => setFilter(key)}
           >
-            {f}
-            <span style={{ fontWeight: 400, opacity: .7 }}>
-              {filterCounts[f]}
-            </span>
+            {label}
+            <span className="chip-count">{filterCounts[key]}</span>
           </button>
         ))}
       </div>
@@ -290,6 +330,7 @@ export default function CandidateList() {
           const rejected = isCallRejected(candidate);
           const isOpen = expanded === candidate.id;
           const callStarted = Boolean(candidate.callInitiatedAt || candidate.callId);
+          const active = isCallActive(candidate);
 
           return (
             <div key={candidate.id}>
@@ -309,13 +350,13 @@ export default function CandidateList() {
                 </div>
 
                 {/* Phone */}
-                <div className="cell-text">{candidate.phone}</div>
+                <div className="cell-text cell-phone">{candidate.phone}</div>
 
                 {/* Role */}
-                <div className="cell-text">{candidate.role}</div>
+                <div className="cell-text cell-role">{candidate.role}</div>
 
                 {/* Status */}
-                <div><StatusBadge candidate={candidate} /></div>
+                <div className="cell-status"><StatusBadge candidate={candidate} /></div>
 
                 {/* Actions */}
                 <div className="cell-actions">
@@ -325,28 +366,49 @@ export default function CandidateList() {
                       <PhoneOff size={10} /> Declined
                     </span>
                   ) : !callStarted || (!result && callStarted) ? (
-                    <button
-                      className="btn btn-primary btn-sm"
-                      onClick={() => initiateCall(candidate)}
-                      disabled={calling === candidate.id || isLoading}
-                    >
-                      {calling === candidate.id
-                        ? <><span className="spinner" style={{ width: 10, height: 10 }} /> Calling…</>
-                        : <><Phone size={11} /> {callStarted ? 'Retry' : 'Call'}</>
-                      }
-                    </button>
+                    <>
+                      {active && (
+                        <span
+                          className="live-status"
+                          title="Live status from the call provider. The transcript appears after the call ends."
+                        >
+                          <span className="live-dot" />
+                          {(candidate.callStatus || 'queued').replace(/-/g, ' ')}
+                        </span>
+                      )}
+                      {active && candidate.callId && (
+                        <button
+                          className="btn btn-ghost btn-icon btn-sm"
+                          onClick={() => checkStatus(candidate)}
+                          title="Check the latest call status from the provider"
+                        >
+                          <RefreshCw size={12} />
+                        </button>
+                      )}
+                      <button
+                        className="btn btn-primary btn-sm"
+                        onClick={() => initiateCall(candidate)}
+                        disabled={active || calling === candidate.id || isLoading}
+                        title={active ? 'Call still in progress - wait until it ends before retrying, to avoid a duplicate call and charge' : undefined}
+                      >
+                        {calling === candidate.id
+                          ? <><span className="spinner" style={{ width: 10, height: 10 }} /> Calling…</>
+                          : <><Phone size={11} /> {callStarted ? 'Retry' : 'Call'}</>
+                        }
+                      </button>
+                    </>
                   ) : (
                     <span className="badge badge-called">
                       <CheckCircle size={10} /> Called
                     </span>
                   )}
 
-                  {/* Expand results */}
-                  {result && (
+                  {/* Expand results / live call panel */}
+                  {(result || (callStarted && !rejected)) && (
                     <button
                       className="btn btn-ghost btn-icon btn-sm"
                       onClick={() => setExpanded(isOpen ? null : candidate.id)}
-                      title="View screening details"
+                      title={result ? 'View screening details' : 'View live call status'}
                     >
                       {isOpen ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
                     </button>
@@ -362,6 +424,23 @@ export default function CandidateList() {
                   </button>
                 </div>
               </div>
+
+              {/* Expandable live-call panel (call started, no result yet) */}
+              {isOpen && !result && callStarted && (
+                <div className="result-expand">
+                  <div className="call-live-panel">
+                    <div className="call-live-head">
+                      <span className="live-dot" />
+                      Call {(candidate.callStatus || 'queued').replace(/-/g, ' ')}
+                    </div>
+                    <p>
+                      Live status from the call provider. Bolna only delivers the transcript after the
+                      call ends and post-processing finishes - the full speaker-labelled transcript
+                      will appear here and in Results then.
+                    </p>
+                  </div>
+                </div>
+              )}
 
               {/* Expandable result detail */}
               {isOpen && result && (
@@ -400,6 +479,7 @@ export default function CandidateList() {
                       </>}
                     </div>
                   </div>
+                  <TranscriptView transcript={result.transcript} demo={result.demo} />
                 </div>
               )}
             </div>
@@ -408,4 +488,4 @@ export default function CandidateList() {
       </div>
     </div>
   );
-          }
+                }
