@@ -4,7 +4,8 @@ import {
   RefreshCw, PhoneOff, ChevronDown, ChevronUp, PhoneMissed,
   X
 } from 'lucide-react';
-import { useStore } from '../store';
+import { useStore, apiUrl } from '../store';
+import DecisionControls from './DecisionControls';
 import '../styles/CandidateList.css';
 
 // Bolna statuses that mean the candidate declined / didn't pick up
@@ -96,7 +97,7 @@ export default function CandidateList() {
 
   const refreshScreenings = async () => {
     try {
-      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/screenings`);
+      const res = await fetch(apiUrl('/api/screenings'), { credentials: 'same-origin' });
       if (res.ok) {
         const d = await res.json();
         setScreeningResults(d.results || []);
@@ -111,7 +112,7 @@ export default function CandidateList() {
     const poll = async () => {
       attempts++;
       try {
-        const res = await fetch(`${import.meta.env.VITE_API_URL}/api/call-status/${callId}`);
+        const res = await fetch(apiUrl(`/api/call-status/${callId}`), { credentials: 'same-origin' });
         const data = await res.json();
         if (res.ok) {
           updateCandidate(candidate.id, { callStatus: data.status });
@@ -137,9 +138,10 @@ export default function CandidateList() {
     setLoading(true);
     setMessage('');
     try {
-      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/initiate-call`, {
+      const res = await fetch(apiUrl('/api/initiate-call'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
         body: JSON.stringify({
           candidateId: candidate.id,
           candidateName: candidate.name,
@@ -149,7 +151,7 @@ export default function CandidateList() {
       });
       const data = await res.json().catch(() => ({}));
       if (res.ok) {
-        updateCandidate(candidate.id, { callId: data.callId, callInitiated: true, callStatus: 'ringing' });
+        updateCandidate(candidate.id, { callId: data.callId, callInitiatedAt: new Date().toISOString(), callStatus: 'ringing' });
         setMessage(data.message || `Call initiated for ${candidate.name}.`);
         setTimeout(refreshScreenings, data.demoMode ? 3000 : 1000);
         if (!data.demoMode && data.callId) watchStatus(candidate, data.callId);
@@ -277,6 +279,7 @@ export default function CandidateList() {
           const result = getResult(candidate);
           const rejected = isCallRejected(candidate);
           const isOpen = expanded === candidate.id;
+          const callStarted = Boolean(candidate.callInitiatedAt || candidate.callId);
 
           return (
             <div key={candidate.id}>
@@ -311,7 +314,7 @@ export default function CandidateList() {
                     <span className="badge badge-rejected-call" title="Candidate declined the call">
                       <PhoneOff size={10} /> Declined
                     </span>
-                  ) : !candidate.callInitiated || (!result && candidate.callInitiated) ? (
+                  ) : !callStarted || (!result && callStarted) ? (
                     <button
                       className="btn btn-primary btn-sm"
                       onClick={() => initiateCall(candidate)}
@@ -319,7 +322,7 @@ export default function CandidateList() {
                     >
                       {calling === candidate.id
                         ? <><span className="spinner" style={{ width: 10, height: 10 }} /> Calling…</>
-                        : <><Phone size={11} /> {candidate.callInitiated ? 'Retry' : 'Call'}</>
+                        : <><Phone size={11} /> {callStarted ? 'Retry' : 'Call'}</>
                       }
                     </button>
                   ) : (
@@ -357,8 +360,10 @@ export default function CandidateList() {
                     <div className="result-score-block">
                       <ScoreRing score={result.overallScore} />
                       <span className={`badge ${result.recommendation === 'PASS' ? 'badge-pass' : 'badge-reject'}`}>
-                        {result.recommendation}
+                        AI suggestion: {result.recommendation}
                       </span>
+                      {result.demo && <span className="badge badge-demo">Sample data</span>}
+                      <DecisionControls result={result} compact />
                     </div>
                     <div className="result-qa-col">
                       <div className="result-qa-label">Background</div>
@@ -393,4 +398,4 @@ export default function CandidateList() {
       </div>
     </div>
   );
-}
+      }
