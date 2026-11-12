@@ -1,9 +1,10 @@
 import { useState, useMemo } from 'react';
 import {
   BarChart3, RefreshCw, Trash2, ChevronDown, ChevronUp,
-  Search, Award, Users, TrendingUp, CheckCircle2,
+  Search, Award, Users, TrendingUp, CheckCircle2, GitCompare,
 } from 'lucide-react';
-import { useStore } from '../store';
+import { useStore, apiUrl } from '../store';
+import DecisionControls from './DecisionControls';
 import '../styles/ScreeningResults.css';
 
 function ScoreRing({ score, size = 52 }) {
@@ -39,6 +40,44 @@ function ScoreBar({ label, score }) {
   );
 }
 
+function PendingUpdateBanner({ result }) {
+  const { reviewScreeningUpdate } = useStore();
+  const [saving, setSaving] = useState(false);
+  const pending = result.pendingUpdate;
+  if (!pending) return null;
+
+  const act = async (action) => {
+    setSaving(true);
+    try {
+      await reviewScreeningUpdate(result.id, action);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="pending-update-banner">
+      <div className="pending-update-head">
+        <GitCompare size={13} />
+        <strong>New result waiting for your review</strong>
+      </div>
+      <p>
+        Newer data arrived for this screening (score {result.overallScore} → {pending.overallScore},
+        suggestion {result.recommendation} → {pending.recommendation}). The published result and your
+        decision stay unchanged until you approve the new one.
+      </p>
+      <div className="decision-actions">
+        <button className="btn btn-sm btn-decision-shortlist" disabled={saving} onClick={() => act('approve')}>
+          Approve new result
+        </button>
+        <button className="btn btn-sm btn-decision-reject" disabled={saving} onClick={() => act('dismiss')}>
+          Keep current
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export default function ScreeningResults() {
   const { screeningResults, setScreeningResults } = useStore();
   const [refreshing, setRefreshing] = useState(false);
@@ -48,7 +87,7 @@ export default function ScreeningResults() {
   const refresh = async () => {
     setRefreshing(true);
     try {
-      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/screenings`);
+      const res = await fetch(apiUrl('/api/screenings'), { credentials: 'same-origin' });
       if (res.ok) {
         const d = await res.json();
         setScreeningResults(d.results || []);
@@ -60,7 +99,7 @@ export default function ScreeningResults() {
 
   const deleteResult = async (id, e) => {
     e.stopPropagation();
-    await fetch(`${import.meta.env.VITE_API_URL}/api/screenings/${id}`, { method: 'DELETE' });
+    await fetch(apiUrl(`/api/screenings/${id}`), { method: 'DELETE', credentials: 'same-origin' });
     setScreeningResults(screeningResults.filter(r => r.id !== id));
   };
 
@@ -107,9 +146,9 @@ export default function ScreeningResults() {
           <span className="summary-tile-sub">candidates interviewed</span>
         </div>
         <div className="summary-tile">
-          <span className="summary-tile-label"><CheckCircle2 size={12} /> Passed</span>
+          <span className="summary-tile-label"><CheckCircle2 size={12} /> AI suggested pass</span>
           <span className="summary-tile-value" style={{ color: 'var(--success)' }}>{passCount}</span>
-          <span className="summary-tile-sub">{passRate}% pass rate</span>
+          <span className="summary-tile-sub">{passRate}% of screens - not your decision</span>
         </div>
         <div className="summary-tile">
           <span className="summary-tile-label"><TrendingUp size={12} /> Avg Score</span>
@@ -158,9 +197,11 @@ export default function ScreeningResults() {
                   </div>
 
                   <div className="result-row-meta">
-                    <span className={`badge ${cls === 'pass' ? 'badge-pass' : 'badge-reject'}`}>
-                      {result.recommendation}
+                    <span className={`badge ${cls === 'pass' ? 'badge-pass' : 'badge-reject'}`} title="Suggested by the AI screen - your decision is separate">
+                      AI: {result.recommendation}
                     </span>
+                    {result.demo && <span className="badge badge-demo">Sample data</span>}
+                    {result.pendingUpdate && <span className="badge badge-review">Review update</span>}
                     <button
                       className="btn btn-ghost btn-icon btn-sm"
                       onClick={e => deleteResult(result.id, e)}
@@ -174,6 +215,8 @@ export default function ScreeningResults() {
 
                 {isOpen && (
                   <div className="result-detail">
+                    <PendingUpdateBanner result={result} />
+                    <DecisionControls result={result} />
                     {/* Score breakdown bars */}
                     {result.questionScores && Object.values(result.questionScores).some(s => s > 0) && (
                       <div style={{ marginBottom: 12 }}>
