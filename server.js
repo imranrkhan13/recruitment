@@ -226,8 +226,13 @@ const BOLNA_AGENT_ID = (process.env.BOLNA_AGENT_ID || process.env.VITE_BOLNA_AGE
 const REAL_CALLS_ALLOWED = process.env.ALLOW_REAL_CALLS === 'true';
 const HAS_BOLNA_CREDS = Boolean(BOLNA_API_KEY && BOLNA_AGENT_ID);
 const MOCK_CALLS = process.env.MOCK_BOLNA_CALLS === 'true' || !REAL_CALLS_ALLOWED || !HAS_BOLNA_CREDS;
+// Even with real calls enabled, only numbers on this explicit E.164
+// allowlist (REAL_CALL_ALLOWLIST, comma-separated) can be dialed. An
+// empty list means no real call can be placed.
+const REAL_CALL_ALLOWLIST = (process.env.REAL_CALL_ALLOWLIST || '')
+  .split(',').map((n) => n.trim()).filter(Boolean);
 const BOLNA_API_BASE = 'https://api.bolna.ai';
-const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{12}$/i;
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 const normalizePhoneNumber = (phoneNumber) => {
   const trimmed = String(phoneNumber || '').trim();
@@ -538,6 +543,13 @@ app.post("/api/initiate-call", async (req, res) => {
       });
     }
 
+    if (!shouldMockCall && !REAL_CALL_ALLOWLIST.includes(formattedPhoneNumber)) {
+      return res.status(403).json({
+        error: 'Number not allowed for real calls',
+        details: 'Real calls are limited to an explicit allowlist. This number is not on it, so nothing was dialed and no credits were spent.',
+      });
+    }
+
     const callPayload = {
       agent_id: BOLNA_AGENT_ID,
       recipient_phone_number: formattedPhoneNumber,
@@ -791,6 +803,7 @@ app.get("/health", (req, res) => {
     timestamp: new Date(),
     demoMode: MOCK_CALLS,
     callsMode: MOCK_CALLS ? 'demo' : 'live',
+    realCallAllowlistCount: REAL_CALL_ALLOWLIST.length,
     storage: storageDriver,
     authConfigured: Boolean(getOwner()),
   });
@@ -824,6 +837,10 @@ app.listen(PORT, () => {
   console.log(`💾 Storage: ${storageDriver}`);
   console.log(`🧪 Call mode: ${MOCK_CALLS ? 'demo (no real calls)' : 'LIVE - real Bolna calls enabled'}`);
   console.log(`🔐 Owner account: ${getOwner() ? 'configured' : 'not set up yet'}`);
+  if (HAS_BOLNA_CREDS) {
+    const fp = crypto.createHash('sha256').update(BOLNA_AGENT_ID).digest('hex').slice(0, 12);
+    console.log(`🪪 Bolna agent fingerprint (sha256 first 12): ${fp}`);
+  }
   console.log(`✅ Health check: http://localhost:${PORT}/health\n`);
 });
 
